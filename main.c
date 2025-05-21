@@ -1,5 +1,12 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <SDL3/SDL.h>
+
+#define DISPLAY_WIDTH 64
+#define DISPLAY_HEIGHT 32
+#define PIXEL_SIZE 10
+uint8_t display[DISPLAY_WIDTH * DISPLAY_HEIGHT];
 
 struct mainMemory {
     unsigned char memory[4096]; // 4KB of memory
@@ -25,6 +32,8 @@ int romLoader(const char *filename, struct mainMemory *chip8) {
     printf("Loaded %ld bytes.\n", fileSize);
     return 0;
 }
+
+
 int interpreter (int currByte, struct mainMemory *chip8) {
     int opcode = chip8->memory[currByte] << 8 | chip8->memory[currByte + 1];
     short x;
@@ -32,6 +41,7 @@ int interpreter (int currByte, struct mainMemory *chip8) {
     unsigned short NNN;
     unsigned char NN;
     unsigned char N;
+    int res = 0;
 
     switch (opcode & 0xF000) {
     case 0x0000:
@@ -144,7 +154,7 @@ int interpreter (int currByte, struct mainMemory *chip8) {
         case 0x0004:
             x = (opcode & 0x0F00) >> 8;
             y = (opcode & 0x00F0) >> 4;
-            int res = chip8->V[x] + chip8->V[y];
+            res = chip8->V[x] + chip8->V[y];
             chip8->V[0xF] = (res > 255) ? 1 : 0;
             chip8->V[x] += chip8->V[y];
             chip8->PC += 2;
@@ -301,19 +311,41 @@ int interpreter (int currByte, struct mainMemory *chip8) {
 }
 
 int main() {
-    bool running = true;
-    struct mainMemory chip8;
-    unsigned short pc = chip8.PC;
-
-    printf("Hello, Chip-8 Emulator!\n");
-    romLoader("Connect-4.ch8", &chip8);
-    printf("Memory[0]: %x\n", chip8.memory[0x200]);
-    printf("Opcode: %x\n", interpreter(0x200, &chip8));
-    return 0;
-
-    while (running)  // Main loop
-    {
-        interpreter(pc, &chip8);
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+        fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+        return -1;
     }
-    
+
+    SDL_Window *window = SDL_CreateWindow(
+        "CHIP-8",
+        DISPLAY_WIDTH * PIXEL_SIZE,
+        DISPLAY_HEIGHT * PIXEL_SIZE,
+        0
+    );
+    if (!window) {
+        fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+        SDL_Quit();
+        return -1;
+    }
+
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
+    if (!renderer) {
+        fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Your emulator setup
+    struct mainMemory chip8 = {0};
+    romLoader("Connect-4.ch8", &chip8);
+
+    printf("Memory[0x200]: %02X\n", chip8.memory[0x200]);
+    printf("Opcode: %04X\n", interpreter(0x202, &chip8));
+
+    // Cleanup
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 0;
 }

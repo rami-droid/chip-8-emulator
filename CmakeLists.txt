@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(hello C CXX)
+project(main C)
 
 find_package(SDL3 REQUIRED)
 
@@ -7,7 +7,7 @@ add_executable(hello)
 
 target_sources(hello
 PRIVATE
-    main.cpp
+    main.c
 )
 
 target_link_libraries(hello SDL3::SDL3)
